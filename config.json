@@ -11,6 +11,7 @@
   "pickup_instructions": "test5",
   "use_todays_date_button": "Use today's date",
   "banks_file": "banks.txt",
+  "progress_file": "progress.json",
   "pause_ms": 3000,
   "type_delay_ms": 100
 }

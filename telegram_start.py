@@ -5,6 +5,8 @@ Uses the same Chrome profile as:
   npx playwright codegen --channel=chrome --user-data-dir="$env:USERPROFILE\\chrome-playwright-profile"
 
 Edit settings in config.json and bank list in banks.txt.
+Progress is saved to progress.json so restarts skip completed email+bank pairs.
+Delete progress.json to start over.
 """
 
 from __future__ import annotations
@@ -35,6 +37,30 @@ def friend_emails_from_config(cfg: dict) -> list[str]:
     return [cfg["friend_email"]]
 
 
+def progress_key(email: str, bank: str) -> str:
+    return f"{email}\n{bank}"
+
+
+def load_progress(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    completed = data.get("completed", [])
+    return {progress_key(item["email"], item["bank"]) for item in completed}
+
+
+def mark_completed(path: Path, email: str, bank: str, completed: set[str]) -> None:
+    completed.add(progress_key(email, bank))
+    payload = {
+        "completed": [
+            {"email": email_part, "bank": bank_part}
+            for key in sorted(completed)
+            for email_part, bank_part in [key.split("\n", 1)]
+        ]
+    }
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
 def institution_label(bank: str) -> str:
     """Bank display name used when typing the custom institution."""
     return re.sub(r"\s+brand(ed)?$", "", bank, flags=re.I).strip()
@@ -60,9 +86,24 @@ def run() -> None:
     if not banks:
         raise SystemExit(f"No banks found in {banks_path}")
 
+    progress_path = Path(__file__).with_name(cfg.get("progress_file", "progress.json"))
+    completed = load_progress(progress_path)
+
     emails = friend_emails_from_config(cfg)
     pause_ms = cfg["pause_ms"]
     type_delay_ms = cfg["type_delay_ms"]
+
+    remaining = [
+        (email, bank)
+        for email in emails
+        for bank in banks
+        if progress_key(email, bank) not in completed
+    ]
+    if not remaining:
+        print("Nothing left to send — all email+bank pairs are in progress.json.")
+        return
+
+    print(f"Resuming: {len(remaining)} remaining of {len(emails) * len(banks)} total.")
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
@@ -133,17 +174,21 @@ def run() -> None:
         expect(message).to_be_visible(timeout=30_000)
         send_message = page.get_by_role("button", name="Send Message").last
 
-        for email in emails:
-            type_into_message(message, "/start")
-            message.press("Enter")
-            pause()
+        current_email: str | None = None
+        for email, bank in remaining:
+            if email != current_email:
+                type_into_message(message, "/start")
+                message.press("Enter")
+                pause()
 
-            click_button(cfg["select_friend_button"], timeout=30_000)
-            click_button(email, timeout=30_000)
+                click_button(cfg["select_friend_button"], timeout=30_000)
+                click_button(email, timeout=30_000)
+                current_email = email
 
-            for bank in banks:
-                print(f"Sending for email={email!r} bank={bank!r}")
-                run_fdic_send(message, send_message, bank)
+            print(f"Sending for email={email!r} bank={bank!r}")
+            run_fdic_send(message, send_message, bank)
+            mark_completed(progress_path, email, bank, completed)
+            print(f"Saved progress → {progress_path.name} ({len(completed)} done)")
 
         print(
             f"Flow completed: {len(emails)} email(s) × {len(banks)} bank(s) "
