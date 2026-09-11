@@ -5,6 +5,8 @@
   "friend_emails": ["noob cyber"],
   "select_friend_button": "👤 Select victim",
   "carrier_name": "test1",
+  "courier_receipt_text": "test1",
+  "shipping_carrier": "DHL",
   "evidence_carrier": "joy nate",
   "evidence_pickup_date": "june 5, 2026",
   "vehicle_description": "test2",

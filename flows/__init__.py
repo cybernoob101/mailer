@@ -4,12 +4,20 @@ from __future__ import annotations
 
 from typing import Callable
 
-from flows import evidence_shipping, fdic_courier, iron_ledger
+from flows import (
+    courier_receipt,
+    evidence_shipping,
+    fdic_courier,
+    iron_ledger,
+    shipping_receipt,
+)
 
 _MODULES = (
     fdic_courier,
     iron_ledger,
     evidence_shipping,
+    courier_receipt,
+    shipping_receipt,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
