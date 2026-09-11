@@ -1,0 +1,18 @@
+{
+  "profile_dir": "chrome-playwright-profile",
+  "telegram_url": "https://web.telegram.org/a/",
+  "bot_name": "GrannyBlazerMailer",
+  "friend_email": "noob cyber",
+  "select_friend_button": "👤 Select victim",
+  "carrier_name": "test1",
+  "vehicle_description": "test2",
+  "vehicle_tag": "test3",
+  "pickup_address": "test4",
+  "pickup_instructions": "test5",
+  "institution_name": "America's Credit Union",
+  "custom_institution_name": "America's credit Union",
+  "branded_button": "America's Credit Union branded",
+  "use_todays_date_button": "Use today's date",
+  "pause_ms": 3000,
+  "type_delay_ms": 100
+}
