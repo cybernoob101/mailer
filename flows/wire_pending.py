@@ -16,11 +16,9 @@ def run_wire_style_flow(
     *,
     template_button: str | re.Pattern[str],
     agent_name: str | None = None,
+    skip_note: bool = False,
 ) -> None:
-    """Shared Wire Pending / Wire Reversal Options path.
-
-    Wire Reversal Options adds one step: assigned agent name (before branding).
-    """
+    """Shared wire-style path (Pending / Reversal Options / Cancellation)."""
     click_button = h["click_button"]
     send_text = h["send_text"]
     button_pattern = h["button_pattern"]
@@ -46,6 +44,9 @@ def run_wire_style_flow(
 
     # Email header layout (branded), separate from receiving bank name above.
     click_button(button_pattern(branded_button_label(bank)))
+
+    if skip_note:
+        click_button(re.compile(r"Skip note", re.I))
 
     try:
         click_button(re.compile(r"Go to bottom", re.I), timeout=5_000)

@@ -16,8 +16,10 @@ from flows import (
     in_branch_withdrawal,
     investigative_wire,
     iron_ledger,
+    rep_verification,
     shipping_receipt,
     unrecognized_device_login,
+    wire_cancellation,
     wire_pending,
     wire_reversal_options,
     zelle_cancellation,
@@ -35,6 +37,7 @@ _MODULES = (
     alias_investigative_wire,
     wire_pending,
     wire_reversal_options,
+    wire_cancellation,
     zelle_processing,
     zelle_cancellation,
     zelle_reversal,
@@ -44,6 +47,7 @@ _MODULES = (
     in_branch_withdrawal,
     in_branch_appointment,
     unrecognized_device_login,
+    rep_verification,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
