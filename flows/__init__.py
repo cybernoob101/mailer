@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Callable
 
 from flows import (
+    alias_investigative_wire,
     courier_receipt,
     evidence_shipping,
     fdic_courier,
@@ -20,6 +21,7 @@ _MODULES = (
     courier_receipt,
     shipping_receipt,
     investigative_wire,
+    alias_investigative_wire,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
