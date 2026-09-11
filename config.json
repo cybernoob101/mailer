@@ -11,6 +11,8 @@
   "investigative_wire_address": "742 Evergreen Terrace, Springfield, IL 62704",
   "investigative_wire_account": "4829173640",
   "investigative_wire_routing": "021000021",
+  "wire_pending_beneficiary": "Jordan Blake",
+  "wire_pending_amount": "$12,500.00",
   "evidence_carrier": "joy nate",
   "evidence_pickup_date": "june 5, 2026",
   "vehicle_description": "test2",

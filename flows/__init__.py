@@ -12,6 +12,7 @@ from flows import (
     investigative_wire,
     iron_ledger,
     shipping_receipt,
+    wire_pending,
 )
 
 _MODULES = (
@@ -22,6 +23,7 @@ _MODULES = (
     shipping_receipt,
     investigative_wire,
     alias_investigative_wire,
+    wire_pending,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
