@@ -8,7 +8,19 @@ TEMPLATE_NAME = "Wire Pending"
 NEEDS_BANKS = True
 
 
-def run(message, send_message, bank: str, h: dict) -> None:
+def run_wire_style_flow(
+    message,
+    send_message,
+    bank: str,
+    h: dict,
+    *,
+    template_button: str | re.Pattern[str],
+    agent_name: str | None = None,
+) -> None:
+    """Shared Wire Pending / Wire Reversal Options path.
+
+    Wire Reversal Options adds one step: assigned agent name (before branding).
+    """
     click_button = h["click_button"]
     send_text = h["send_text"]
     button_pattern = h["button_pattern"]
@@ -17,7 +29,7 @@ def run(message, send_message, bank: str, h: dict) -> None:
     cfg = h["cfg"]
 
     click_button("📧 Send email", timeout=30_000)
-    click_button(TEMPLATE_NAME, timeout=30_000)
+    click_button(template_button, timeout=30_000)
 
     send_text(
         message,
@@ -29,13 +41,25 @@ def run(message, send_message, bank: str, h: dict) -> None:
     click_button(re.compile(r"Custom institution", re.I))
     send_text(message, send_message, institution_label(bank))
 
+    if agent_name is not None:
+        send_text(message, send_message, agent_name)
+
     # Email header layout (branded), separate from receiving bank name above.
     click_button(button_pattern(branded_button_label(bank)))
 
-    # Send now can be below the fold after the brand keyboard.
     try:
         click_button(re.compile(r"Go to bottom", re.I), timeout=5_000)
     except Exception:
         pass
 
     click_button(re.compile(r"Send now", re.I))
+
+
+def run(message, send_message, bank: str, h: dict) -> None:
+    run_wire_style_flow(
+        message,
+        send_message,
+        bank,
+        h,
+        template_button=TEMPLATE_NAME,
+    )
