@@ -4,7 +4,7 @@ Automate Telegram Web (A version) → GrannyBlazerMailer bot flow.
 Uses the same Chrome profile as:
   npx playwright codegen --channel=chrome --user-data-dir="$env:USERPROFILE\\chrome-playwright-profile"
 
-Edit settings in config.json.
+Edit settings in config.json and bank list in banks.txt.
 """
 
 from __future__ import annotations
@@ -23,11 +23,44 @@ def load_config() -> dict:
         return json.load(f)
 
 
+def load_banks(path: Path) -> list[str]:
+    lines = path.read_text(encoding="utf-8").splitlines()
+    return [line.strip() for line in lines if line.strip() and not line.strip().startswith("#")]
+
+
+def friend_emails_from_config(cfg: dict) -> list[str]:
+    if emails := cfg.get("friend_emails"):
+        return list(emails)
+    # Back-compat with older single-value configs.
+    return [cfg["friend_email"]]
+
+
+def institution_label(bank: str) -> str:
+    """Bank display name used when typing the custom institution."""
+    return re.sub(r"\s+brand(ed)?$", "", bank, flags=re.I).strip()
+
+
+def branded_button_label(bank: str) -> str:
+    """Telegram button text is '<bank> branded'."""
+    base = institution_label(bank)
+    return f"{base} branded"
+
+
+def button_pattern(label: str) -> re.Pattern[str]:
+    return re.compile(re.escape(label).replace("'", ".?"), re.I)
+
+
 def run() -> None:
     cfg = load_config()
     profile_dir = Path.home() / cfg["profile_dir"]
     profile_dir.mkdir(parents=True, exist_ok=True)
 
+    banks_path = Path(__file__).with_name(cfg.get("banks_file", "banks.txt"))
+    banks = load_banks(banks_path)
+    if not banks:
+        raise SystemExit(f"No banks found in {banks_path}")
+
+    emails = friend_emails_from_config(cfg)
     pause_ms = cfg["pause_ms"]
     type_delay_ms = cfg["type_delay_ms"]
 
@@ -60,6 +93,35 @@ def run() -> None:
             send_message.click()
             pause()
 
+        def click_button(name: str | re.Pattern[str], timeout: int = 60_000) -> None:
+            btn = page.get_by_role("button", name=name).last
+            expect(btn).to_be_visible(timeout=timeout)
+            btn.click()
+            pause()
+
+        def run_fdic_send(message, send_message, bank: str) -> None:
+            click_button("📧 Send email", timeout=30_000)
+            click_button("FDIC Courier", timeout=30_000)
+
+            send_text(message, send_message, cfg["carrier_name"])
+            click_button(button_pattern(cfg["use_todays_date_button"]))
+            send_text(message, send_message, cfg["vehicle_description"])
+            send_text(message, send_message, cfg["vehicle_tag"])
+            send_text(message, send_message, cfg["pickup_address"])
+            send_text(message, send_message, cfg["pickup_instructions"])
+
+            click_button(button_pattern(branded_button_label(bank)))
+
+            institution = institution_label(bank)
+            type_into_message(message, institution)
+            pause()
+
+            click_button(re.compile(r"Custom institution", re.I))
+            send_text(message, send_message, institution)
+
+            click_button(re.compile(r"Skip note", re.I))
+            click_button(re.compile(r"Send now", re.I))
+
         page.goto(cfg["telegram_url"], wait_until="domcontentloaded")
 
         chat_link = page.get_by_role("link", name=cfg["bot_name"]).first
@@ -69,84 +131,23 @@ def run() -> None:
 
         message = page.get_by_role("textbox", name="Message").last
         expect(message).to_be_visible(timeout=30_000)
-        type_into_message(message, "/start")
-        message.press("Enter")
-        pause()
-
-        # Chat history can contain multiple copies; always use the newest.
-        select_friend = page.get_by_role(
-            "button", name=cfg["select_friend_button"]
-        ).last
-        expect(select_friend).to_be_visible(timeout=30_000)
-        select_friend.click()
-        pause()
-
-        friend = page.get_by_role("button", name=cfg["friend_email"]).last
-        expect(friend).to_be_visible(timeout=30_000)
-        friend.click()
-        pause()
-
-        send_email = page.get_by_role("button", name="📧 Send email").last
-        expect(send_email).to_be_visible(timeout=30_000)
-        send_email.click()
-        pause()
-
-        # Avoid brittle #message-N ids; newest matching button in chat history.
-        fdic_courier = page.get_by_role("button", name="FDIC Courier").last
-        expect(fdic_courier).to_be_visible(timeout=30_000)
-        fdic_courier.click()
-        pause()
-
         send_message = page.get_by_role("button", name="Send Message").last
 
-        # FDIC form prompts (codegen often skips these mid-steps).
-        send_text(message, send_message, cfg["carrier_name"])
+        for email in emails:
+            type_into_message(message, "/start")
+            message.press("Enter")
+            pause()
 
-        use_today = page.get_by_role(
-            "button", name=re.compile(re.escape(cfg["use_todays_date_button"]).replace("'", ".?"), re.I)
-        ).last
-        expect(use_today).to_be_visible(timeout=60_000)
-        use_today.click()
-        pause()
+            click_button(cfg["select_friend_button"], timeout=30_000)
+            click_button(email, timeout=30_000)
 
-        send_text(message, send_message, cfg["vehicle_description"])
-        send_text(message, send_message, cfg["vehicle_tag"])
-        send_text(message, send_message, cfg["pickup_address"])
-        send_text(message, send_message, cfg["pickup_instructions"])
-
-        branded_pattern = re.escape(cfg["branded_button"]).replace("'", ".?")
-        branded = page.get_by_role(
-            "button", name=re.compile(branded_pattern, re.I)
-        ).last
-        expect(branded).to_be_visible(timeout=60_000)
-        branded.click()
-        pause()
-
-        type_into_message(message, cfg["institution_name"])
-        pause()
-
-        custom_institution = page.get_by_role(
-            "button", name=re.compile(r"Custom institution", re.I)
-        ).last
-        expect(custom_institution).to_be_visible(timeout=60_000)
-        custom_institution.click()
-        pause()
-
-        send_text(message, send_message, cfg["custom_institution_name"])
-
-        skip_note = page.get_by_role("button", name=re.compile(r"Skip note", re.I)).last
-        expect(skip_note).to_be_visible(timeout=60_000)
-        skip_note.click()
-        pause()
-
-        send_now = page.get_by_role("button", name=re.compile(r"Send now", re.I)).last
-        expect(send_now).to_be_visible(timeout=60_000)
-        send_now.click()
-        pause()
+            for bank in banks:
+                print(f"Sending for email={email!r} bank={bank!r}")
+                run_fdic_send(message, send_message, bank)
 
         print(
-            "Flow completed: /start → select friend → send email → FDIC form "
-            "→ branded → custom institution → skip note → send now."
+            f"Flow completed: {len(emails)} email(s) × {len(banks)} bank(s) "
+            f"= {len(emails) * len(banks)} send(s)."
         )
         context.close()
 
