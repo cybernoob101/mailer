@@ -31,7 +31,13 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright, expect
 
 from flows import FLOWS, TEMPLATES_WITH_BANKS
-from flows.common import branded_button_label, button_pattern, institution_label
+from flows.common import (
+    ScreenshotRecorder,
+    branded_button_label,
+    button_pattern,
+    institution_label,
+    slugify,
+)
 
 CONFIG_PATH = Path(__file__).with_name("config.json")
 
@@ -138,6 +144,11 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Print the job queue and exit without opening the browser.",
+    )
+    parser.add_argument(
+        "--no-screenshots",
+        action="store_true",
+        help="Disable ui/<flow>/<step>/screenshot.png capture.",
     )
     return parser.parse_args()
 
@@ -260,6 +271,10 @@ def run(args: argparse.Namespace | None = None) -> None:
         )
         page = context.pages[0] if context.pages else context.new_page()
 
+        ui_root = Path(__file__).with_name(cfg.get("ui_dir", "ui"))
+        shots = ScreenshotRecorder(ui_root, page)
+        shots.enabled = not args.no_screenshots and cfg.get("screenshots", True)
+
         def pause() -> None:
             page.wait_for_timeout(pause_ms)
 
@@ -276,12 +291,16 @@ def run(args: argparse.Namespace | None = None) -> None:
             expect(send_message).to_be_visible(timeout=30_000)
             send_message.click()
             pause()
+            preview = text if len(text) <= 40 else text[:37] + "..."
+            shots.capture(f"send_text_{preview}")
 
         def click_button(name: str | re.Pattern[str], timeout: int = 60_000) -> None:
             btn = page.get_by_role("button", name=name).last
             expect(btn).to_be_visible(timeout=timeout)
+            label = name.pattern if isinstance(name, re.Pattern) else str(name)
             btn.click()
             pause()
+            shots.capture(f"click_{label}")
 
         helpers = {
             "cfg": cfg,
@@ -292,14 +311,18 @@ def run(args: argparse.Namespace | None = None) -> None:
             "button_pattern": button_pattern,
             "branded_button_label": branded_button_label,
             "institution_label": institution_label,
+            "screenshot": shots.capture,
         }
 
         page.goto(cfg["telegram_url"], wait_until="domcontentloaded")
+        shots.begin("_session", "_")
+        shots.capture("opened_telegram")
 
         chat_link = page.get_by_role("link", name=cfg["bot_name"]).first
         expect(chat_link).to_be_visible(timeout=60_000)
         chat_link.click()
         pause()
+        shots.capture("opened_bot_chat")
 
         message = page.get_by_role("textbox", name="Message").last
         expect(message).to_be_visible(timeout=30_000)
@@ -307,20 +330,26 @@ def run(args: argparse.Namespace | None = None) -> None:
 
         current_email: str | None = None
         for email, template, bank in remaining:
+            shots.begin(template, bank or "_")
             if email != current_email:
                 type_into_message(message, "/start")
                 message.press("Enter")
                 pause()
+                shots.capture("sent_start")
                 click_button(cfg["select_friend_button"], timeout=30_000)
                 click_button(email, timeout=30_000)
                 current_email = email
 
             print(f"Sending email={email!r} template={template!r} bank={bank!r}")
+            print(f"Screenshots → {ui_root / slugify(template) / slugify(bank or '_')}")
             FLOWS[template](message, send_message, bank, helpers)
             mark_completed(progress_path, email, template, bank, completed)
+            shots.capture("flow_completed")
             print(f"Saved progress → {progress_path.name} ({len(completed)} done)")
 
         print("Flow completed for all remaining implemented jobs.")
+        if shots.enabled:
+            print(f"Screenshots saved under {ui_root.resolve()}")
         context.close()
 
 

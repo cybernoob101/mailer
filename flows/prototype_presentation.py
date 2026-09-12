@@ -35,6 +35,7 @@ def run(message, send_message, bank: str, h: dict) -> None:
         cfg.get("prototype_caption", "photo"),
         pause,
         prefer_file=True,
+        screenshot=h.get("screenshot"),
     )
 
     click_button(re.compile(r"Skip note", re.I))

@@ -43,6 +43,7 @@ def run(message, send_message, bank: str, h: dict) -> None:
         cfg.get("preliminary_evidence_caption", cfg.get("prototype_caption", "photo")),
         pause,
         prefer_file=True,
+        screenshot=h.get("screenshot"),
     )
 
     click_button(re.compile(r"Done.*attached|Done", re.I))

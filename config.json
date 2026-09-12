@@ -48,6 +48,8 @@
   "banks_file": "banks.txt",
   "templates_file": "templates.txt",
   "progress_file": "progress.json",
+  "ui_dir": "ui",
+  "screenshots": true,
   "only_templates": ["FDIC Courier"],
   "bank_limit": 4,
   "only_banks": null,
