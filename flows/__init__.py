@@ -6,6 +6,7 @@ from typing import Callable
 
 from flows import (
     alias_investigative_wire,
+    cancelled_transaction,
     cash_app_cancellation,
     cash_app_processing,
     cash_app_reversal,
@@ -16,6 +17,7 @@ from flows import (
     in_branch_withdrawal,
     investigative_wire,
     iron_ledger,
+    prototype_presentation,
     rep_verification,
     shipping_receipt,
     unrecognized_device_login,
@@ -48,6 +50,8 @@ _MODULES = (
     in_branch_appointment,
     unrecognized_device_login,
     rep_verification,
+    cancelled_transaction,
+    prototype_presentation,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
