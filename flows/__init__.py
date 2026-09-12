@@ -17,6 +17,7 @@ from flows import (
     in_branch_withdrawal,
     investigative_wire,
     iron_ledger,
+    preliminary_evidence,
     prototype_presentation,
     rep_verification,
     shipping_receipt,
@@ -52,6 +53,7 @@ _MODULES = (
     rep_verification,
     cancelled_transaction,
     prototype_presentation,
+    preliminary_evidence,
 )
 
 FLOWS: dict[str, Callable] = {mod.TEMPLATE_NAME: mod.run for mod in _MODULES}
